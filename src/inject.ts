@@ -1,6 +1,7 @@
 // Files gathered ahead of time go into the accepted turn as already read (v1 D9), the way
 // pi-jev-kit's seed does: whole files with N#HH anchors when the read tool speaks them (pi-multiedit),
 // numbered lines otherwise, under a size cap; each whole file is announced as `anchored-view`.
+import { realpathSync } from "node:fs";
 import { relative } from "node:path";
 import { formatAnchored, formatNumbered } from "./anchor.ts";
 
@@ -16,7 +17,7 @@ export function composeInjection(cwd: string, files: Map<string, string>, maxCha
   for (const [abs, content] of files) {
     const lines = content.split("\n");
     if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
-    const rel = relative(cwd, abs) || abs;
+    const rel = displayPath(cwd, abs);
     const block = `### ${rel} (complete, ${lines.length} lines)\n${anchored ? formatAnchored(lines, 1) : formatNumbered(lines, 1)}`;
     if (used + block.length > maxChars) continue;
     blocks.push(block);
@@ -29,6 +30,17 @@ export function composeInjection(cwd: string, files: Map<string, string>, maxCha
     ? "Files for this request, read ahead of time while the user was typing. Each is the whole file, already read: every line carries its N#HH anchor, so edit it directly without reading it again."
     : "Files for this request, read ahead of time while the user was typing. Each is the whole file, already read, with line numbers.";
   return { text: `${lead}\n\n${blocks.join("\n\n")}`, views, files: names };
+}
+
+/** `abs` relative to `cwd`, also when one of them has symlinks resolved (macOS /var → /private/var). */
+function displayPath(cwd: string, abs: string): string {
+  let rel = relative(cwd, abs);
+  if (rel.startsWith("..")) {
+    try {
+      rel = relative(realpathSync(cwd), abs);
+    } catch {}
+  }
+  return rel && !rel.startsWith("..") ? rel : abs;
 }
 
 /** Whether the main session's read tool returns N#HH anchors (pi-multiedit, pi-hashline-edit). */
