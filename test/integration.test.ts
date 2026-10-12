@@ -15,7 +15,7 @@ const userTexts = (h: Harness) => h.session.messages.filter((m: any) => m.role =
 
 describe("v1: predict, show, read ahead, inject", () => {
   test("settled run → forked predictions → widget and event → read-ahead → accepted send gets the files", async () => {
-    h = await createHarness({ predict: () => "run the tests\ncommit this", main: () => ({ text: "done" }) });
+    h = await createHarness({ predict: () => "run the tests\ncommit this", main: () => ({ text: "done" }) }, { PI_NEXT_TURN_AHEAD: "read" });
     await h.prompt("look at math.ts");
     assert.equal(h.events.filter((e) => e.name === "next-turn:prediction").length, 0, "no prediction after one assistant message");
     await h.prompt("what is wrong with it");
@@ -45,7 +45,7 @@ describe("v1: predict, show, read ahead, inject", () => {
   });
 
   test("changed course: no injection, outcome recorded", async () => {
-    h = await createHarness({ predict: () => "run the tests", main: () => ({ text: "done" }) });
+    h = await createHarness({ predict: () => "run the tests", main: () => ({ text: "done" }) }, { PI_NEXT_TURN_AHEAD: "read" });
     await h.prompt("a");
     await h.prompt("b");
     await h.waitFor("next-turn:prediction", (d) => d.readAhead === "ready");
@@ -53,6 +53,22 @@ describe("v1: predict, show, read ahead, inject", () => {
     const main = h.calls.filter((c) => c.kind === "main").pop()!;
     assert.ok(!JSON.stringify(main.messages).includes("read ahead of time"));
     assert.equal((await h.waitFor("next-turn:outcome")).outcome, "changed_course");
+  });
+
+  test("default is predictions only: no read-ahead, a one-time tip, and the accepted turn gets nothing injected", async () => {
+    h = await createHarness({ predict: () => "run the tests", main: () => ({ text: "done" }) });
+    await h.prompt("a");
+    await h.prompt("b");
+    const ev = await h.waitFor("next-turn:prediction");
+    assert.equal(ev.readAhead, "none");
+    await h.idle(200);
+    assert.equal(h.calls.filter((c) => c.kind === "readahead").length, 0);
+    assert.equal(h.notices.filter((n) => n.includes("/next-turn ahead read")).length, 1);
+    await h.prompt("run the tests");
+    assert.ok(!JSON.stringify(h.calls.filter((c) => c.kind === "main").pop()!.messages).includes("read ahead of time"));
+    await h.prompt("c");
+    await h.waitFor("next-turn:prediction", (d) => d.id !== ev.id);
+    assert.equal(h.notices.filter((n) => n.includes("/next-turn ahead read")).length, 1, "the tip is shown once");
   });
 
   test("a prediction fork that calls a tool yields no prediction", async () => {
@@ -74,7 +90,7 @@ describe("v1: predict, show, read ahead, inject", () => {
   });
 
   test("fill key puts the prediction into the editor; typing hides the widget", async () => {
-    h = await createHarness({ predict: (n) => (n % 3 === 2 ? "commit this" : "run the tests"), main: () => ({ text: "done" }) }, { PI_NEXT_TURN_READ_AHEAD: "off", PI_NEXT_TURN_P_SHOW: "0.2" });
+    h = await createHarness({ predict: (n) => (n % 3 === 2 ? "commit this" : "run the tests"), main: () => ({ text: "done" }) }, { PI_NEXT_TURN_P_SHOW: "0.2" });
     await h.prompt("a");
     await h.prompt("b");
     await h.waitFor("next-turn:prediction");
@@ -151,7 +167,7 @@ describe("v2: speculative draft and hand-over", () => {
   };
 
   test("exact send of a complete speculation: draft applied, prepared turn handed over without a new model run", async () => {
-    h = await createHarness(script, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" });
+    h = await createHarness(script, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" });
     const fake = fakeDrafts(h);
     h.speculating.add("fix the bug");
     await h.prompt("a");
@@ -178,7 +194,7 @@ describe("v2: speculative draft and hand-over", () => {
   });
 
   test("a different send discards the draft and runs normally", async () => {
-    h = await createHarness(script, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" });
+    h = await createHarness(script, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" });
     const fake = fakeDrafts(h);
     h.speculating.add("fix the bug");
     await h.prompt("a");
@@ -194,7 +210,7 @@ describe("v2: speculative draft and hand-over", () => {
 
   test("a refused tool ends the speculation: no hand-over, the send runs normally", async () => {
     const s = { predict: () => "fix the bug", main: (user: string, tr: number) => (user === "fix the bug" && tr === 0 ? { tool: "bash", args: { command: "npm install left-pad" } } : { text: "done" }) };
-    h = await createHarness(s, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7" });
+    h = await createHarness(s, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7" });
     fakeDrafts(h);
     h.speculating.add("fix the bug");
     await h.prompt("a");

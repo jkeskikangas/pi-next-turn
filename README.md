@@ -1,15 +1,21 @@
 # pi-next-turn
 
-Predicts your next prompt in [pi](https://pi.dev), and works on it before you send it.
+Predicts your next prompt in [pi](https://pi.dev), and, if you let it, works on it before you send it.
 
 After each run, pi-next-turn asks forks of your session what you will type next. The forks reuse
 your session's prompt cache, so a prediction costs mostly cache reads. A confident prediction is
 shown below the editor (and on your phone with [pi-mobile](https://github.com/jkeskikangas/pi-mobile)).
-Above a higher bar it reads the files that prompt will need while you are still reading. With
-drafts on, it runs the whole predicted turn ahead of time and holds its edits in an in-memory
-[pi-multiedit](https://github.com/jkeskikangas/pi-multiedit) draft. Send that prompt and the
-prepared turn appears at once, its edits applied all-or-nothing. Send anything else and it is
-thrown away; nothing was written.
+
+That is all it does by default. Working ahead is opt-in, at two levels:
+
+- `/next-turn ahead read`: above a higher bar it also reads the files that prompt will need
+  while you are still reading. Read-only.
+- `/next-turn ahead draft`: it also runs the whole predicted turn ahead of time and holds its
+  edits in an in-memory [pi-multiedit](https://github.com/jkeskikangas/pi-multiedit) draft. Send
+  that prompt and the prepared turn appears at once, its edits applied all-or-nothing. Send
+  anything else and it is thrown away; nothing was written.
+
+`/next-turn ahead off` goes back to predictions only.
 
 ```
 pi install npm:pi-next-turn
@@ -26,10 +32,10 @@ Review the source before installing: pi extensions run with your user permission
 
 - `alt+n` puts the prediction into the editor, `alt+]` cycles when there are alternatives. Edit it
   or send it. Typing anything else hides it.
-- `· reading ahead…` / `· files ready`: the files the prompt needs were read ahead. If you send
+- `· reading ahead…` / `· files ready` (`ahead read` or `draft`): the files the prompt needs were read ahead. If you send
   the prediction (or something close to it), they go into the turn as already read, with
   pi-multiedit's `N#HH` anchors, so the model can edit without reading first.
-- `· draft: 2 files, tests pass` (drafts on): the turn has been run ahead. Sending the prediction
+- `· draft: 2 files, tests pass` (`ahead draft`): the turn has been run ahead. Sending the prediction
   hands the prepared turn over: its messages become the turn, its draft is applied, and a note
   says what changed and whether checks passed.
 
@@ -47,12 +53,29 @@ eval fits a table to your own sessions.
 |---|---|
 | below `pShow` (0.35) | nothing |
 | `pShow` | shown |
-| `pRead` (0.7) | also reads ahead: a fork with read, grep, find and ls only |
-| `pDraft` (0.85), drafts on | also runs the whole turn ahead: edits in a draft, read-only shell, checks in a worktree |
+| `pRead` (0.7), `ahead read` or `draft` | also reads ahead: a fork with read, grep, find and ls only |
+| `pDraft` (0.85), `ahead draft` | instead runs the whole turn ahead: edits in a draft, read-only shell, checks in a worktree |
+
+## Should it work ahead?
+
+Off by default, because working ahead spends model requests and quota without asking, and some
+users want a suggestion and nothing else. Turn it on when the tradeoff suits you:
+
+- **Predictions only** (`off`): the cheapest; nothing runs before you act. Three forked requests
+  per run, mostly cache reads.
+- **Read ahead** (`read`): changes nothing; when a prediction is right, the model edits without
+  searching and reading first. Costs up to 8 tool calls, 20 s and 60k tokens per confident
+  prediction, also when you then send something else.
+- **Draft** (`draft`): the biggest time saving when right (the turn is done when you send), and
+  the biggest cost when wrong (up to 40 tool calls, 120 s, 400k tokens). Nothing is written
+  until you send it.
+
+Run `npm run eval` from a checkout to see how often predictions are right on your own sessions.
 
 ## Running the turn ahead (drafts)
 
-Off by default: `/next-turn drafts on`. Needs pi-multiedit with draft support as the edit tool.
+`/next-turn ahead draft`. Needs pi-multiedit 0.4 or later (draft support) as the edit tool;
+without it, or below `pDraft`, it reads ahead instead.
 
 - The fork gets your conversation, model, system prompt and tool declarations unchanged (so it
   reads the cache), and the predicted prompt as its user message.
@@ -78,16 +101,15 @@ Off by default: `/next-turn drafts on`. Needs pi-multiedit with draft support as
 | `/next-turn` or `/next-turn status` | settings, thresholds, the current prediction |
 | `/next-turn on` / `off` | |
 | `/next-turn stats` | shown, accepted exact / edited, changed course, ignored, read-aheads, speculations, hand-overs, cost |
-| `/next-turn drafts on` / `off` | run whole turns ahead |
-| `/next-turn read-ahead on` / `off` | |
+| `/next-turn ahead off` / `read` / `draft` | how far to work ahead (default `off`) |
 | `/next-turn scorer agreement` / `jev` / `auto` | see below |
 | `/next-turn set <key> <value>` | any setting, e.g. `set pRead 0.75`, `set keys.fill alt+j` |
 
 Settings live in `~/.pi/agent/next-turn/config.json` (per project:
 `~/.pi/agent/next-turn/projects/<hash>/config.json`); environment variables override them
 (`PI_NEXT_TURN`, `PI_NEXT_TURN_SAMPLES`, `PI_NEXT_TURN_P_SHOW`, `PI_NEXT_TURN_P_READ`,
-`PI_NEXT_TURN_P_DRAFT`, `PI_NEXT_TURN_MODEL`, `PI_NEXT_TURN_THINKING`, `PI_NEXT_TURN_READ_AHEAD`,
-`PI_NEXT_TURN_DRAFT`, `PI_NEXT_TURN_VERIFY`, `PI_NEXT_TURN_SCORER`, `PI_NEXT_TURN_JEV_SAFETY`,
+`PI_NEXT_TURN_P_DRAFT`, `PI_NEXT_TURN_MODEL`, `PI_NEXT_TURN_THINKING`, `PI_NEXT_TURN_AHEAD`,
+`PI_NEXT_TURN_VERIFY`, `PI_NEXT_TURN_SCORER`, `PI_NEXT_TURN_JEV_SAFETY`,
 `PI_NEXT_TURN_DEBUG`). `model` and `thinking` default to the session's, which keeps the cache warm.
 
 ## Jev (optional)

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
@@ -248,18 +248,29 @@ describe("config", () => {
     assert.deepEqual(loadConfig("/x", env), DEFAULTS);
     assert.equal(saveSetting("pRead", "0.8", {}, env), undefined);
     assert.equal(saveSetting("keys.fill", "alt+j", {}, env), undefined);
-    assert.equal(saveSetting("draft", "on", { cwd: "/x" }, env), undefined);
+    assert.equal(saveSetting("ahead", "draft", { cwd: "/x" }, env), undefined);
+    assert.match(saveSetting("ahead", "always", {}, env)!, /ahead takes off, read, draft/);
     assert.match(saveSetting("nope", "1", {}, env)!, /unknown/);
     assert.match(saveSetting("pRead", "high", {}, env)!, /number/);
     const c = loadConfig("/x", { ...env, PI_NEXT_TURN_SAMPLES: "5", PI_NEXT_TURN_SCORER: "jev" });
     assert.equal(c.pRead, 0.8);
     assert.equal(c.keys.fill, "alt+j");
     assert.equal(c.keys.cycle, DEFAULTS.keys.cycle);
-    assert.equal(c.draft, true);
-    assert.equal(loadConfig("/y", env).draft, false);
+    assert.equal(c.ahead, "draft");
+    assert.equal(loadConfig("/y", env).ahead, "off", "off by default");
+    assert.equal(loadConfig("/y", { ...env, PI_NEXT_TURN_AHEAD: "read" }).ahead, "read");
+    assert.equal(loadConfig("/y", { ...env, PI_NEXT_TURN_AHEAD: "bogus" }).ahead, "off");
     assert.equal(c.samples, 5);
     assert.equal(c.scorer, "jev");
     assert.ok(JSON.parse(readFileSync(join(dir, "next-turn", "config.json"), "utf8")).keys.fill === "alt+j");
+  });
+  test("legacy readAhead/draft settings map onto ahead", () => {
+    for (const [legacy, ahead] of [[{ draft: true }, "draft"], [{ readAhead: true, draft: false }, "read"], [{ readAhead: false }, "off"], [{ draft: true, ahead: "read" }, "read"]] as const) {
+      const dir = mkdtempSync(join(tmpdir(), "nt-legacy-"));
+      mkdirSync(join(dir, "next-turn"), { recursive: true });
+      writeFileSync(join(dir, "next-turn", "config.json"), JSON.stringify(legacy));
+      assert.equal(loadConfig("/x", { PI_CODING_AGENT_DIR: dir }).ahead, ahead, JSON.stringify(legacy));
+    }
   });
 });
 

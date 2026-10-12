@@ -7,6 +7,15 @@ import { dirname, join } from "node:path";
 
 export type ScorerChoice = "agreement" | "jev" | "auto";
 
+/**
+ * How far to work ahead of the user. "off": predictions only. "read": also read the files a
+ * confident prediction needs (read-only fork). "draft": also run the whole predicted turn, edits
+ * held in a pi-multiedit draft until the user sends it (falls back to "read" below pDraft or
+ * without pi-multiedit). Off by default: the read-ahead gate (plans/v1.md step 4) has not passed.
+ */
+export type Ahead = "off" | "read" | "draft";
+export const AHEAD_LEVELS: Ahead[] = ["off", "read", "draft"];
+
 export type Config = {
   enabled: boolean;
   /** Forked samples per prediction (v1 D6). */
@@ -26,9 +35,7 @@ export type Config = {
   model: string;
   /** "session" or a thinking level. Same as the session keeps the prompt cache warm. */
   thinking: string;
-  readAhead: boolean;
-  /** v2: run the whole predicted turn ahead, edits in a pi-multiedit draft. Off until the v1 gate passes. */
-  draft: boolean;
+  ahead: Ahead;
   /** v2 E5: run the repo's check command against the draft in a throwaway worktree. */
   verify: boolean;
   /** v2 E11: "agreement" (no dependency), "jev" (TypeSafe classifier through pi's model registry), "auto" (jev when available). */
@@ -58,8 +65,7 @@ export const DEFAULTS: Config = {
   maxChars: 100,
   model: "session",
   thinking: "session",
-  readAhead: true,
-  draft: false,
+  ahead: "off",
   verify: true,
   scorer: "agreement",
   jevSafety: false,
@@ -95,10 +101,16 @@ export function projectConfigPath(cwd: string, env: NodeJS.ProcessEnv = process.
 function readJson(path: string): Record<string, unknown> {
   try {
     const v = JSON.parse(readFileSync(path, "utf8"));
-    return v && typeof v === "object" ? v : {};
+    return v && typeof v === "object" ? migrate(v) : {};
   } catch {
     return {};
   }
+}
+
+/** 0.1 development builds had `readAhead` and `draft` booleans; they map onto `ahead`. */
+function migrate(v: Record<string, unknown>): Record<string, unknown> {
+  if (v.ahead === undefined && (v.draft === true || v.readAhead !== undefined)) v.ahead = v.draft === true ? "draft" : v.readAhead === true ? "read" : "off";
+  return v;
 }
 
 function merge<T>(base: T, over: Record<string, unknown>): T {
@@ -120,8 +132,7 @@ const ENV: Record<string, keyof Config> = {
   PI_NEXT_TURN_P_DRAFT: "pDraft",
   PI_NEXT_TURN_MODEL: "model",
   PI_NEXT_TURN_THINKING: "thinking",
-  PI_NEXT_TURN_READ_AHEAD: "readAhead",
-  PI_NEXT_TURN_DRAFT: "draft",
+  PI_NEXT_TURN_AHEAD: "ahead",
   PI_NEXT_TURN_VERIFY: "verify",
   PI_NEXT_TURN_SCORER: "scorer",
   PI_NEXT_TURN_JEV_SAFETY: "jevSafety",
@@ -146,6 +157,7 @@ export function loadConfig(cwd: string, env: NodeJS.ProcessEnv = process.env): C
   c = merge(c, readJson(projectConfigPath(cwd, env)));
   c = merge(c, fromEnv(env));
   if (!["agreement", "jev", "auto"].includes(c.scorer)) c.scorer = "agreement";
+  if (!AHEAD_LEVELS.includes(c.ahead)) c.ahead = "off";
   c.samples = Math.max(1, Math.min(8, Math.round(c.samples)));
   return c;
 }
@@ -167,7 +179,11 @@ export function saveSetting(key: string, raw: string, scope: { cwd?: string } = 
   } else if (typeof base === "number") {
     if (!Number.isFinite(Number(raw))) return `${key} takes a number`;
     value = Number(raw);
-  } else if (typeof base === "string") value = raw;
+  } else if (typeof base === "string") {
+    if (key === "ahead" && !AHEAD_LEVELS.includes(raw as Ahead)) return `ahead takes ${AHEAD_LEVELS.join(", ")}`;
+    if (key === "scorer" && !["agreement", "jev", "auto"].includes(raw)) return "scorer takes agreement, jev, auto";
+    value = raw;
+  }
   else return `${key} is not a single value`;
   let node: any = file;
   for (const p of parts.slice(0, -1)) node = node[p] && typeof node[p] === "object" ? node[p] : (node[p] = {});

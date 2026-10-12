@@ -95,17 +95,32 @@ export class Engine {
   private statePath(): string {
     return join(dataDir(), "state.json");
   }
-  private loadStreak(): number {
+  private loadState(): Record<string, unknown> {
     try {
-      return Number(JSON.parse(readFileSync(this.statePath(), "utf8")).unusedStreak) || 0;
+      return JSON.parse(readFileSync(this.statePath(), "utf8")) ?? {};
     } catch {
-      return 0;
+      return {};
     }
   }
-  private saveStreak(): void {
+  private loadStreak(): number {
+    return Number(this.loadState().unusedStreak) || 0;
+  }
+  private saveState(patch: Record<string, unknown>): void {
     try {
       mkdirSync(dirname(this.statePath()), { recursive: true });
-      writeFileSync(this.statePath(), JSON.stringify({ unusedStreak: this.backoff.unusedStreak }) + "\n");
+      writeFileSync(this.statePath(), JSON.stringify({ ...this.loadState(), ...patch }) + "\n");
+    } catch {}
+  }
+  private saveStreak(): void {
+    this.saveState({ unusedStreak: this.backoff.unusedStreak });
+  }
+
+  /** Once: with predictions only, say that working ahead exists and how to turn it on. */
+  private aheadTip(ctx: ExtensionContext): void {
+    if (this.cfg.ahead !== "off" || !ctx.hasUI || this.loadState().aheadTipShown) return;
+    this.saveState({ aheadTipShown: true });
+    try {
+      ctx.ui.notify("pi-next-turn shows predictions only. /next-turn ahead read also reads the files a confident prediction needs while you read; /next-turn ahead draft runs the whole turn ahead, its edits held in a draft until you send it.", "info");
     } catch {}
   }
 
@@ -232,6 +247,7 @@ export class Engine {
     this.current = p;
     this.selected = 0;
     this.publish();
+    this.aheadTip(ctx);
     void this.aheadOfTime(p, src, ctx, lastAssistant, model, thinkingLevel);
   }
 
@@ -274,7 +290,7 @@ export class Engine {
   private async aheadOfTime(p: Prediction, src: ForkSource, ctx: ExtensionContext, lastAssistant: string, model: any, thinkingLevel: any): Promise<void> {
     const top = p.candidates[0];
     const signal = p.controller.signal;
-    if (this.cfg.draft && top.p >= this.cfg.pDraft && (await this.draft.available()) && (await this.safeToSpeculate(ctx, top.text, lastAssistant, signal))) {
+    if (this.cfg.ahead === "draft" && top.p >= this.cfg.pDraft && (await this.draft.available()) && (await this.safeToSpeculate(ctx, top.text, lastAssistant, signal))) {
       p.speculating = true;
       p.readAhead = "running";
       this.publish();
@@ -299,7 +315,7 @@ export class Engine {
       if (this.current === p) this.publish();
       return;
     }
-    if (!this.cfg.readAhead || top.p < this.cfg.pRead) return;
+    if (this.cfg.ahead === "off" || top.p < this.cfg.pRead) return;
     p.readAhead = "running";
     this.publish();
     try {
@@ -529,7 +545,7 @@ export class Engine {
 
   summaryText(): string {
     const p = this.current;
-    const lines = [`pi-next-turn: ${this.cfg.enabled ? "on" : "off"} · scorer ${this.cfg.scorer} · samples ${this.cfg.samples} · read-ahead ${this.cfg.readAhead ? "on" : "off"} · drafts ${this.cfg.draft ? "on" : "off"}`];
+    const lines = [`pi-next-turn: ${this.cfg.enabled ? "on" : "off"} · scorer ${this.cfg.scorer} · samples ${this.cfg.samples} · ahead ${this.cfg.ahead}`];
     lines.push(`thresholds: show ${this.cfg.pShow}, read ${this.cfg.pRead}, draft ${this.cfg.pDraft} · unused streak ${this.backoff.unusedStreak}${this.backoff.active ? " (backing off)" : ""}`);
     if (p) lines.push(`current: ${p.candidates.map((c) => `"${c.text}" ${c.p.toFixed(2)}`).join(", ")} · ahead: ${p.readAhead}${p.speculation ? ` · draft ${draftView(p.speculation)?.files ?? 0} files` : ""}`);
     else if (this.lastSkip) lines.push(`last skip: ${this.lastSkip}`);

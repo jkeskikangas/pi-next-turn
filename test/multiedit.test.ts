@@ -30,7 +30,7 @@ describe("v2 with pi-multiedit drafts", { skip: available ? false : `no pi-multi
 
   test("speculation edits a real draft (disk untouched), hand-over applies it", async () => {
     const multiedit = (await import(join(path, "index.ts"))).default;
-    h = await createHarness(script, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" }, [{ name: "pi-multiedit", factory: multiedit }]);
+    h = await createHarness(script, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" }, [{ name: "pi-multiedit", factory: multiedit }]);
     h.speculating.add("fix the bug and run the tests");
     await h.prompt("a");
     await h.prompt("b");
@@ -48,7 +48,7 @@ describe("v2 with pi-multiedit drafts", { skip: available ? false : `no pi-multi
 
   test("checks run on the materialized draft in a worktree: tests pass, working tree untouched", async () => {
     const multiedit = (await import(join(path, "index.ts"))).default;
-    h = await createHarness(script, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "on" }, [{ name: "pi-multiedit", factory: multiedit }]);
+    h = await createHarness(script, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "on" }, [{ name: "pi-multiedit", factory: multiedit }]);
     const git = (...a: string[]) => execFileSync("git", a, { cwd: h!.cwd, stdio: "pipe" });
     writeFileSync(join(h.cwd, "package.json"), JSON.stringify({ name: "x", scripts: { test: "node check.mjs" } }));
     writeFileSync(join(h.cwd, "check.mjs"), 'import { readFileSync } from "node:fs";\nif (!readFileSync("math.ts", "utf8").includes("a + b")) process.exit(1);\n');
@@ -66,7 +66,7 @@ describe("v2 with pi-multiedit drafts", { skip: available ? false : `no pi-multi
 
   test("a conflicting change under the drafted line: nothing written, the prompt runs normally", async () => {
     const multiedit = (await import(join(path, "index.ts"))).default;
-    h = await createHarness(script, { PI_NEXT_TURN_DRAFT: "on", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" }, [{ name: "pi-multiedit", factory: multiedit }]);
+    h = await createHarness(script, { PI_NEXT_TURN_AHEAD: "draft", PI_NEXT_TURN_P_DRAFT: "0.7", PI_NEXT_TURN_VERIFY: "off" }, [{ name: "pi-multiedit", factory: multiedit }]);
     h.speculating.add("fix the bug and run the tests");
     await h.prompt("a");
     await h.prompt("b");

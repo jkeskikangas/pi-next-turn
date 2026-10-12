@@ -1,7 +1,8 @@
 // pi-next-turn: predicts the user's next prompt after each run, shows it below the editor (and on
 // the phone through pi-mobile, which listens on pi's event bus), reads the files that prompt will
-// need when the prediction is confident, and — with drafts on and pi-multiedit installed — runs the
-// whole predicted turn ahead of time, edits held in an in-memory draft until the user sends it.
+// need when the prediction is confident (`ahead read`), and — with `ahead draft` and pi-multiedit —
+// runs the whole predicted turn ahead of time, edits held in an in-memory draft until the user sends
+// it. Working ahead is off by default: predictions only.
 // Jev (TypeSafe) is optional: used for scoring and safety only when configured and chosen.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadConfig, saveSetting } from "./src/config.ts";
@@ -40,9 +41,9 @@ export default function (pi: ExtensionAPI): void {
   });
 
   pi.registerCommand("next-turn", {
-    description: "Next-prompt predictions: status | on | off | stats | drafts on|off | set <key> <value>",
+    description: "Next-prompt predictions: status | on | off | stats | ahead off|read|draft | scorer | set <key> <value>",
     getArgumentCompletions: (prefix) =>
-      ["status", "on", "off", "stats", "drafts on", "drafts off", "read-ahead on", "read-ahead off", "scorer agreement", "scorer jev", "scorer auto", "set "]
+      ["status", "on", "off", "stats", "ahead off", "ahead read", "ahead draft", "scorer agreement", "scorer jev", "scorer auto", "set "]
         .filter((s) => s.startsWith(prefix))
         .map((s) => ({ value: s, label: s })),
     handler: async (args, ctx) => {
@@ -61,10 +62,9 @@ export default function (pi: ExtensionAPI): void {
         case "off":
           engine.reset("disabled");
           return set("enabled", "off");
-        case "drafts":
-          return set("draft", rest[0] ?? "on");
-        case "read-ahead":
-          return set("readAhead", rest[0] ?? "on");
+        case "ahead":
+          if (!rest[0]) return ctx.ui.notify(`pi-next-turn: ahead is ${engine.cfg.ahead} (off: predictions only · read: also read the files ahead · draft: also run the turn ahead in a draft)`, "info");
+          return set("ahead", rest[0]);
         case "scorer":
           if (!["agreement", "jev", "auto"].includes(rest[0] ?? "")) return ctx.ui.notify("pi-next-turn: scorer agreement | jev | auto", "warning");
           return set("scorer", rest[0]);
@@ -81,7 +81,7 @@ export default function (pi: ExtensionAPI): void {
           );
         }
         default:
-          return ctx.ui.notify("Usage: /next-turn [status | on | off | stats | drafts on|off | read-ahead on|off | scorer agreement|jev|auto | set <key> <value>]", "info");
+          return ctx.ui.notify("Usage: /next-turn [status | on | off | stats | ahead off|read|draft | scorer agreement|jev|auto | set <key> <value>]", "info");
       }
     },
   });

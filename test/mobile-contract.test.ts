@@ -17,7 +17,7 @@ afterEach(() => {
 
 test("pi-mobile parses the prediction events this extension emits", { skip: existsSync(suggest) ? false : `no pi-mobile suggest.ts at ${suggest}` }, async () => {
   const { parsePrediction } = await import(suggest);
-  h = await createHarness({ predict: () => "run the tests\ncommit this", main: () => ({ text: "done" }) });
+  h = await createHarness({ predict: () => "run the tests\ncommit this", main: () => ({ text: "done" }) }, { PI_NEXT_TURN_AHEAD: "read" });
   await h.prompt("a");
   await h.prompt("b");
   const ready = await h.waitFor("next-turn:prediction", (d) => d.readAhead === "ready");
