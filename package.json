@@ -12,6 +12,11 @@
   ],
   "license": "MIT",
   "author": "Jarno Keskikangas",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jkeskikangas/pi-next-turn.git"
+  },
+  "homepage": "https://github.com/jkeskikangas/pi-next-turn#readme",
   "pi": {
     "extensions": [
       "./index.ts"
