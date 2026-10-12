@@ -26,7 +26,7 @@ function textOf(m: any): string {
 
 export type Harness = Awaited<ReturnType<typeof createHarness>>;
 
-export async function createHarness(script: Script, env: Record<string, string> = {}) {
+export async function createHarness(script: Script, env: Record<string, string> = {}, extraFactories: { name: string; factory: any }[] = []) {
   const agentDir = mkdtempSync(join(tmpdir(), "nt-agent-"));
   const cwd = mkdtempSync(join(tmpdir(), "nt-cwd-"));
   writeFileSync(join(cwd, "math.ts"), "export function add(a: number, b: number) {\n  return a - b;\n}\n");
@@ -66,7 +66,7 @@ export async function createHarness(script: Script, env: Record<string, string> 
   runtime.registerNativeProvider(faux.provider);
   const model = faux.getModel();
   const eventBus = createEventBus();
-  const loader = new DefaultResourceLoader({ cwd, agentDir, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true, eventBus, extensionFactories: [{ name: "pi-next-turn", factory: extension }] });
+  const loader = new DefaultResourceLoader({ cwd, agentDir, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true, eventBus, extensionFactories: [...extraFactories, { name: "pi-next-turn", factory: extension }] });
   await loader.reload();
   const { session } = await createAgentSession({
     cwd,
