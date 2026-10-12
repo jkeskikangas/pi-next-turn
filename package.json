@@ -1,0 +1,51 @@
+{
+  "name": "pi-next-turn",
+  "version": "0.1.0",
+  "description": "Predicts your next prompt in pi, reads ahead when confident, and drafts the whole next turn before you send it",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "extension",
+    "prompt-suggestions",
+    "speculative-execution"
+  ],
+  "license": "MIT",
+  "author": "Jarno Keskikangas",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc -p .",
+    "eval": "node --experimental-strip-types eval/replay.ts",
+    "spike": "node --experimental-strip-types eval/spike.ts"
+  },
+  "files": [
+    "index.ts",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.1.0",
+    "@earendil-works/pi-tui": "*",
+    "@types/node": "^26.6.4",
+    "@types/xxhashjs": "^0.2.4",
+    "typebox": "*",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.1.0",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "xxhashjs": "^0.2.2"
+  }
+}
