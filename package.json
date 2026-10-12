@@ -1,6 +1,6 @@
 {
   "name": "pi-next-turn",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Predicts your next prompt in pi, reads ahead when confident, and drafts the whole next turn before you send it",
   "type": "module",
   "keywords": [
