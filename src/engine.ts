@@ -47,6 +47,7 @@ export type Prediction = {
   filled?: string;
   hidden: boolean;
   settled: boolean;
+  scorer: string;
 };
 
 export type PredictionEvent = {
@@ -211,7 +212,7 @@ export class Engine {
     this.log.write(
       "prediction",
       { scorer: scorer.name, samples: this.cfg.samples, shown: shown.length > 0, top: result.candidates[0]?.p ?? 0, n: result.candidates.length, dropped: result.dropped.map((d) => d.reason), ms: result.ms, cost: result.usage.cost, cacheRead: result.usage.cacheRead, input: result.usage.input },
-      { candidates: result.candidates, samples: result.samples },
+      { candidateTexts: result.candidates, sampleTexts: result.samples, droppedTexts: result.dropped },
     );
     if (!shown.length) return;
     const p: Prediction = {
@@ -225,6 +226,7 @@ export class Engine {
       baseLeafId: ctx.sessionManager.getLeafId(),
       hidden: !!ctx.hasUI && ctx.mode === "tui" && ctx.ui.getEditorText().trim() !== "",
       settled: false,
+      scorer: scorer.name,
     };
     if (this.current) this.clear("replaced", true);
     this.current = p;
@@ -409,7 +411,7 @@ export class Engine {
     if (outcome === "accepted_exact" || outcome === "accepted_edited") this.backoff.used();
     else this.backoff.unusedOne();
     this.saveStreak();
-    this.log.write("outcome", { id: p.id, outcome, p: p.candidates[0]?.p, readAhead: p.readAhead, draft: !!draftView(p.speculation), ...extra }, { sent, shown: p.candidates.map((c) => c.text) });
+    this.log.write("outcome", { id: p.id, outcome, p: p.candidates[0]?.p, raw: p.candidates[0]?.raw, scorer: p.scorer, samples: this.cfg.samples, readAhead: p.readAhead, draft: !!draftView(p.speculation), ...extra }, { sent, shown: p.candidates.map((c) => c.text) });
     this.pi.events.emit(EVENTS.outcome, { id: p.id, outcome, sent });
     if (outcome !== "ignored") {
       try {

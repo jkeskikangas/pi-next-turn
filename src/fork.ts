@@ -123,6 +123,8 @@ export type ForkOptions = {
   model?: any;
   thinkingLevel?: any;
   onPayload?: (payload: unknown) => void;
+  /** A message to add before the fork's first run (the eval's read-ahead variant). */
+  inject?: { customType: string; content: string; display: boolean };
 };
 
 function replaceOptions(target: Record<string, any>, source: Record<string, any>): void {
@@ -154,13 +156,14 @@ export async function openFork(src: ForkSource, opts: ForkOptions): Promise<Fork
         },
       } as any);
     }
-    if (src.options) {
-      const options = src.options;
-      fp.on("before_agent_start", (event) => {
-        replaceOptions(event.systemPromptOptions as any, { ...options, cwd: (event.systemPromptOptions as any).cwd });
-        return undefined;
-      });
-    }
+    let inject = opts.inject;
+    const options = src.options;
+    fp.on("before_agent_start", (event) => {
+      if (options) replaceOptions(event.systemPromptOptions as any, { ...options, cwd: (event.systemPromptOptions as any).cwd });
+      const message = inject;
+      inject = undefined;
+      return message ? { message } : undefined;
+    });
     fp.on("before_provider_request", (event) => {
       payloads.push(event.payload);
       opts.onPayload?.(event.payload);

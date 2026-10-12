@@ -21,7 +21,9 @@
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "typecheck": "tsc -p .",
     "eval": "node --experimental-strip-types eval/replay.ts",
-    "spike": "node --experimental-strip-types eval/spike.ts"
+    "spike": "node --experimental-strip-types eval/spike.ts",
+    "refit": "node --experimental-strip-types eval/refit.ts",
+    "ab": "node --experimental-strip-types eval/ab.ts"
   },
   "files": [
     "index.ts",

@@ -3,7 +3,7 @@
 // compares with what the user actually sent. Sends past session content to the chosen model
 // provider (as the original sessions did); runs only when invoked and lists the sessions it reads.
 //
-//   npm run eval -- [--turns 400] [--k 1,3] [--model provider/id] [--read-ahead] [--fit]
+//   npm run eval -- [--turns 400] [--per-session 25] [--k 1,3] [--model provider/id] [--read-ahead] [--fit]
 //                   [--pairs pairs.json] [--labels labels.json] [--sessions dir] [--concurrency 4]
 //
 // --fit writes the calibration table fitted on the calibration split to the agent dir, where the
@@ -30,6 +30,7 @@ const opt = (name: string, fallback?: string) => {
 };
 
 const maxTurns = Number(opt("turns", "400"));
+const perSession = Number(opt("per-session", "25"));
 const ks = (opt("k", "1,3") ?? "3").split(",").map(Number).filter((n) => n > 0);
 const concurrency = Number(opt("concurrency", "4"));
 const sessionsDir = resolve(opt("sessions", join(agentDir(), "sessions"))!);
@@ -61,7 +62,8 @@ for (const file of sessionFiles(sessionsDir)) {
   } catch {
     continue;
   }
-  const ts = extractTurns(file, sm.getBranch());
+  // Newest turns of each session, at most `perSession`, so many sessions and repos are covered.
+  const ts = extractTurns(file, sm.getBranch()).slice(-perSession);
   if (!ts.length) continue;
   used.add(file);
   repos.add(sm.getCwd());

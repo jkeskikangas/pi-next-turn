@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { similarity } from "./similar.ts";
 
-export type Candidate = { text: string; p: number };
+/** `raw`: the uncalibrated agreement score, kept so live outcomes can refit the table. */
+export type Candidate = { text: string; p: number; raw?: number };
 
 /** One forked sample: its candidates, most likely first. */
 export type Sample = string[];
@@ -145,6 +146,6 @@ export class AgreementScorer implements Scorer {
   }
 
   async score(samples: Sample[]): Promise<Candidate[]> {
-    return this.raw(samples).map(({ text, raw }) => ({ text, p: calibrate(raw, this.calibration) }));
+    return this.raw(samples).map(({ text, raw }) => ({ text, p: calibrate(raw, this.calibration), raw }));
   }
 }

@@ -104,7 +104,7 @@ describe("scoring", () => {
   });
   test("agreement scorer probabilities come from the table", async () => {
     const out = await new AgreementScorer(0.6, DEFAULT_CALIBRATION).score([["run the tests"], ["run the tests"], ["run the tests"]]);
-    assert.deepEqual(out, [{ text: "run the tests", p: 0.75 }]);
+    assert.deepEqual(out, [{ text: "run the tests", p: 0.75, raw: 1 }]);
   });
 });
 
