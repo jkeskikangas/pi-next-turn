@@ -24,11 +24,11 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s
 export class JevScorer implements Scorer {
   readonly name = "jev";
   private readonly agreement: AgreementScorer;
-  constructor(
-    private readonly registry: ClassifierRegistry,
-    private readonly model: unknown,
-    agreeCut: number,
-  ) {
+  private readonly registry: ClassifierRegistry;
+  private readonly model: unknown;
+  constructor(registry: ClassifierRegistry, model: unknown, agreeCut: number) {
+    this.registry = registry;
+    this.model = model;
     this.agreement = new AgreementScorer(agreeCut);
   }
 

@@ -9,10 +9,12 @@ export function logPath(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export class EventLog {
-  constructor(
-    private readonly path: string = logPath(),
-    private readonly debug = false,
-  ) {}
+  private readonly path: string;
+  private readonly debug: boolean;
+  constructor(path: string = logPath(), debug = false) {
+    this.path = path;
+    this.debug = debug;
+  }
 
   write(type: string, data: Record<string, unknown>, texts: Record<string, unknown> = {}): void {
     try {

@@ -11,10 +11,11 @@ export type DraftSummary = { files: { path: string; status: "created" | "modifie
 export class DraftClient {
   private ready = false;
   private readonly off: () => void;
-  constructor(
-    private readonly events: EventBusLike,
-    private readonly timeoutMs = 5000,
-  ) {
+  private readonly events: EventBusLike;
+  private readonly timeoutMs: number;
+  constructor(events: EventBusLike, timeoutMs = 5000) {
+    this.events = events;
+    this.timeoutMs = timeoutMs;
     this.off = events.on("multiedit:draft-ready", () => {
       this.ready = true;
     });

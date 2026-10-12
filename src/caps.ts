@@ -9,11 +9,11 @@ export class CapGuard {
   reason: string | undefined;
   private timer: NodeJS.Timeout | undefined;
   private unsubscribe: (() => void) | undefined;
-  constructor(
-    private readonly session: AgentSession,
-    private readonly caps: Caps,
-    private readonly from: number,
-  ) {
+  private readonly session: AgentSession;
+  private readonly caps: Caps;
+  constructor(session: AgentSession, caps: Caps, from: number) {
+    this.session = session;
+    this.caps = caps;
     this.timer = setTimeout(() => this.stop(`time cap ${caps.ms} ms`), caps.ms);
     this.timer.unref?.();
     this.unsubscribe = session.subscribe((ev: any) => {

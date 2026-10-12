@@ -20,8 +20,9 @@ export default function (pi: ExtensionAPI): void {
   pi.on("ui_prompt_end", () => engine.dialog(false));
   pi.on("agent_start", () => engine.agentStart());
   pi.on("agent_settled", (event, ctx) => {
-    // Off the settle path: the prediction runs in the background.
-    setImmediate(() => void engine.afterRun(ctx, event.aborted).catch(() => undefined));
+    // Off the settle path: the prediction runs in the background, for the leaf this run settled on.
+    const leaf = ctx.sessionManager.getLeafId();
+    setImmediate(() => void engine.afterRun(ctx, event.aborted, leaf).catch(() => undefined));
   });
   pi.on("input", (event) => engine.input(event.text, event.source, !!event.images?.length));
   pi.on("before_agent_start", (event) => {

@@ -80,10 +80,9 @@ export class Engine {
   cfg: Config;
   lastSkip: string | undefined;
 
-  constructor(
-    private readonly pi: ExtensionAPI,
-    cwd: string = process.cwd(),
-  ) {
+  private readonly pi: ExtensionAPI;
+  constructor(pi: ExtensionAPI, cwd: string = process.cwd()) {
+    this.pi = pi;
     this.cfg = loadConfig(cwd);
     this.log = new EventLog(undefined, this.cfg.debug);
     this.backoff = new BackOff(this.cfg.backoff.unused, this.cfg.backoff.every, this.loadStreak());
@@ -170,9 +169,11 @@ export class Engine {
 
   // ── prediction ──
 
-  async afterRun(ctx: ExtensionContext, aborted: boolean): Promise<void> {
+  /** `leafId`: the leaf when the run settled; a later run makes this call stale. */
+  async afterRun(ctx: ExtensionContext, aborted: boolean, leafId: string | null = ctx.sessionManager.getLeafId()): Promise<void> {
     this.ctx = ctx;
     this.cfg = loadConfig(ctx.cwd);
+    if (ctx.sessionManager.getLeafId() !== leafId || !ctx.isIdle()) return this.skipped("stale");
     const branch = ctx.sessionManager.getBranch() as any[];
     const messages = branch.filter((e) => e.type === "message").map((e) => e.message);
     const assistants = messages.filter((m) => m.role === "assistant");

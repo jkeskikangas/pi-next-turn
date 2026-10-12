@@ -125,15 +125,23 @@ function representative(c: Cluster): string {
 
 export class AgreementScorer implements Scorer {
   readonly name = "agreement";
-  constructor(
-    private readonly cut: number,
-    private readonly calibration: Calibration = DEFAULT_CALIBRATION,
-  ) {}
+  private readonly cut: number;
+  private readonly calibration: Calibration;
+  constructor(cut: number, calibration: Calibration = DEFAULT_CALIBRATION) {
+    this.cut = cut;
+    this.calibration = calibration;
+  }
 
   /** The raw agreement of each cluster (share of samples), before calibration; used by the eval. */
   raw(samples: Sample[]): { text: string; raw: number }[] {
+    const clusters = cluster(samples, this.cut);
+    // One sample (a single ranked list) carries no agreement; its rank weights stand in for it.
+    if (samples.length === 1) {
+      const total = clusters.reduce((a, c) => a + c.weight, 0) || 1;
+      return clusters.map((c) => ({ text: representative(c), raw: c.weight / total }));
+    }
     const n = samples.length || 1;
-    return cluster(samples, this.cut).map((c) => ({ text: representative(c), raw: c.votes / n }));
+    return clusters.map((c) => ({ text: representative(c), raw: c.votes / n }));
   }
 
   async score(samples: Sample[]): Promise<Candidate[]> {

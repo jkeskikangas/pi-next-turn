@@ -28,11 +28,11 @@ export function skipReason(g: GateInput): SkipReason | undefined {
 export class BackOff {
   private streak = 0;
   private turn = 0;
-  constructor(
-    private readonly unused: number,
-    private readonly every: number,
-    initialStreak = 0,
-  ) {
+  private readonly unused: number;
+  private readonly every: number;
+  constructor(unused: number, every: number, initialStreak = 0) {
+    this.unused = unused;
+    this.every = every;
     this.streak = initialStreak;
   }
   get unusedStreak(): number {

@@ -8,6 +8,7 @@ export function normalize(text: string): string {
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
     .replace(/[^\p{L}\p{N}\s/._-]+/gu, " ")
+    .replace(/[._-]+(?=\s|$)/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
