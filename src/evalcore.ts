@@ -14,6 +14,10 @@ export type Turn = {
   readPaths: string[];
   /** Read, grep, find and ls calls the real run made. */
   searchCalls: number;
+  /** Paths the real run edited or wrote (edit/write tool calls; pi-multiedit's edits[].path too). */
+  editPaths: string[];
+  /** Wall time of the real run: user message to the last assistant message before the next user message. */
+  runMs: number;
 };
 
 const isMsg = (e: any, role: string) => e?.type === "message" && e.message?.role === role;
@@ -29,17 +33,25 @@ export function extractTurns(sessionFile: string, branch: SessionEntry[], minAss
     const actual = contentText(e.message.content).trim();
     if (!actual || actual.startsWith("/")) continue;
     const readPaths: string[] = [];
+    const editPaths = new Set<string>();
     let searchCalls = 0;
+    const start = Number(e.message.timestamp) || Date.parse(e.timestamp) || 0;
+    let end = start;
     for (let j = i + 1; j < branch.length && !isMsg(branch[j], "user"); j++) {
       const m: any = (branch[j] as any).message;
       if (m?.role !== "assistant") continue;
+      end = Math.max(end, Number(m.timestamp) || Date.parse((branch[j] as any).timestamp) || end);
       for (const c of m.content ?? []) {
         if (c.type !== "toolCall") continue;
         if (["read", "grep", "find", "ls"].includes(c.name)) searchCalls++;
         if (c.name === "read" && typeof c.arguments?.path === "string") readPaths.push(c.arguments.path);
+        if (c.name === "edit" || c.name === "write") {
+          if (typeof c.arguments?.path === "string") editPaths.add(c.arguments.path);
+          for (const ed of Array.isArray(c.arguments?.edits) ? c.arguments.edits : []) if (typeof ed?.path === "string") editPaths.add(ed.path);
+        }
       }
     }
-    turns.push({ sessionFile, prefix: branch.slice(0, i), actual, readPaths, searchCalls });
+    turns.push({ sessionFile, prefix: branch.slice(0, i), actual, readPaths, searchCalls, editPaths: [...editPaths], runMs: Math.max(0, end - start) });
   }
   return turns;
 }

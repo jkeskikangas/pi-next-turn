@@ -281,6 +281,14 @@ describe("eval core", () => {
     assert.deepEqual(turns[0].readPaths, ["a.ts"]);
     assert.equal(turns[0].searchCalls, 2);
     assert.equal(turns[0].prefix.length, 4);
+    assert.deepEqual(turns[0].editPaths, []);
+    const withEdits = extractTurns("f", [
+      ...branch.slice(0, 4),
+      { type: "message", id: "u", message: { role: "user", content: "fix", timestamp: 1000 } },
+      { type: "message", id: "a", message: { role: "assistant", timestamp: 4000, content: [{ type: "toolCall", name: "edit", arguments: { edits: [{ path: "x.ts" }, { path: "y.ts" }] } }, { type: "toolCall", name: "write", arguments: { path: "z.ts" } }] } },
+    ] as any);
+    assert.deepEqual(withEdits[0].editPaths, ["x.ts", "y.ts", "z.ts"]);
+    assert.equal(withEdits[0].runMs, 3000);
   });
   test("split is by session and stable", () => {
     assert.equal(splitOf("a.jsonl"), splitOf("a.jsonl"));
@@ -288,7 +296,7 @@ describe("eval core", () => {
     assert.ok(n > 110 && n < 170, String(n));
   });
   test("metrics, gate, best cut, overlap", () => {
-    const turn = (actual: string) => ({ sessionFile: "f", prefix: [], actual, readPaths: [], searchCalls: 0 });
+    const turn = (actual: string) => ({ sessionFile: "f", prefix: [], actual, readPaths: [], searchCalls: 0, editPaths: [], runMs: 0 });
     const rows = [
       { turn: turn("run the tests"), candidates: [{ text: "run the tests", raw: 1, p: 0.8 }], cost: 0.01, ms: 100, dropped: [] },
       { turn: turn("commit"), candidates: [{ text: "push it", raw: 0.3, p: 0.2 }], cost: 0.01, ms: 100, dropped: [{ text: "commit", reason: "too_few_words" }] },
