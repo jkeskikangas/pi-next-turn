@@ -4,6 +4,7 @@
 // provider (as the original sessions did); runs only when invoked and lists the sessions it reads.
 //
 //   npm run eval -- [--turns 400] [--per-session 25] [--k 1,3] [--model provider/id] [--read-ahead] [--fit]
+//                   [--max-words 12] [--max-chars 100]
 //                   [--pairs pairs.json] [--labels labels.json] [--sessions dir] [--concurrency 4]
 //
 // --fit writes the calibration table fitted on the calibration split to the agent dir, where the
@@ -94,7 +95,7 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T, i: number) => Promis
   return out;
 }
 
-const limits = { maxWords: DEFAULTS.maxWords, maxChars: DEFAULTS.maxChars };
+const limits = { maxWords: Number(opt("max-words", String(DEFAULTS.maxWords))), maxChars: Number(opt("max-chars", String(DEFAULTS.maxChars))) };
 const maxK = Math.max(...ks);
 // Draw maxK samples per turn once; each variant k uses the first k (same draws, fair comparison).
 const draws = await pool(turns, concurrency, async (t) => {
@@ -103,7 +104,7 @@ const draws = await pool(turns, concurrency, async (t) => {
   return { runs, ms: Date.now() - t0 };
 });
 
-const report: Record<string, unknown> = { model: modelArg, turns: turns.length, sessions: used.size, repos: repos.size, variants: {} };
+const report: Record<string, unknown> = { model: modelArg, limits, turns: turns.length, sessions: used.size, repos: repos.size, variants: {} };
 const pairs: { prediction: string; actual: string; similarity: number }[] = [];
 for (const k of ks) {
   const scorer = new AgreementScorer(DEFAULTS.agreeCut);
